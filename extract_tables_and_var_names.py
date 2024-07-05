@@ -33,9 +33,9 @@ def get_num_observations(pdf_fp):
 
     return None
 
-def get_tables_on_page_by_ycoord(pdf_fp, pg_num):
+def get_tables_on_page_by_ycoord(pdf, pg_num):
     """
-    takes str representing file path to pdf and int (falling in range(<number of pages in pdf>)
+    takes pdfplumber pdf object and int (falling in range(<number of pages in pdf>)
     outputs:
     - dict
         - keys: distances from table to top of page (float)
@@ -45,35 +45,34 @@ def get_tables_on_page_by_ycoord(pdf_fp, pg_num):
                 'raw_table': pdfplumber table object
 
     """
-    with pdfplumber.open(pdf_fp) as pdf:
-        pg = pdf.pages[pg_num]
-        tables = pg.debug_tablefinder().tables
+    pg = pdf.pages[pg_num]
+    tables = pg.debug_tablefinder().tables
 
-        final = defaultdict(dict)
-        for table in tables:
-            copy = pdf.pages[pg_num]
-            cells = table.cells
-            table_contents = []
-            ycoord = copy.crop(table.bbox).extract_words()[0]['top']
-            for cell in cells:
-                extract_words = pg.crop(cell).extract_words()
-                cell_words = ''
-                for word in extract_words:
-                    cell_words += f'{word['text']} '
-                cell_words = cell_words.rstrip()
-                if cell_words == '':
-                    continue
-                table_contents.append(cell_words)
-            
-            parsed = parse_table_cells(table_contents)
-            if parsed == None:
+    final = defaultdict(dict)
+    for table in tables:
+        copy = pdf.pages[pg_num]
+        cells = table.cells
+        table_contents = []
+        ycoord = copy.crop(table.bbox).extract_words()[0]['top']
+        for cell in cells:
+            extract_words = pg.crop(cell).extract_words()
+            cell_words = ''
+            for word in extract_words:
+                cell_words += f'{word['text']} '
+            cell_words = cell_words.rstrip()
+            if cell_words == '':
                 continue
-            final[ycoord]['parsed'] = parsed
-            final[ycoord]['raw_table'] = table
+            table_contents.append(cell_words)
+        
+        parsed = parse_table_cells(table_contents)
+        if parsed == None:
+            continue
+        final[ycoord]['parsed'] = parsed
+        final[ycoord]['raw_table'] = table
 
-        return dict(final)
+    return dict(final)
 
-def get_all_tables_by_page_by_ycoord(pdf_fp):
+def get_all_tables_by_page_by_ycoord(pdf):
     """
     wrapper method
     calls get_tables_on_page_by_ycoord on all pages of pdf at pdf_fp
@@ -82,10 +81,10 @@ def get_all_tables_by_page_by_ycoord(pdf_fp):
         keys: integers in range(<number of pages in pdf>)
         values: output of get_tables_on_page_by_ycoord for that page
     """
-    with pdfplumber.open(pdf_fp) as pdf:
-        tables_by_pg_num = {}
-        for pg_num in range(len(pdf.pages)):
-            tables_by_pg_num[pg_num] = get_tables_on_page_by_ycoord(pdf_fp, pg_num)
+
+    tables_by_pg_num = {}
+    for pg_num in range(len(pdf.pages)):
+        tables_by_pg_num[pg_num] = get_tables_on_page_by_ycoord(pdf, pg_num)
     
     return tables_by_pg_num
 
@@ -107,37 +106,36 @@ def fix_split_tables(tables_by_pg_num):
                         break
                 break
 
-def get_varnames_on_page_by_ycoord(pdf_fp, pg_num):
+def get_varnames_on_page_by_ycoord(pdf, pg_num):
     """
-    takes str representing file path to pdf and int (falling in range(<number of pages in pdf>)
+    takes pdfplumber pdf object and int (falling in range(<number of pages in pdf>)
     outputs:
     - dict
         - keys: distances from table to top of page (float)
         - values: variable name at that distance
     """
-    with pdfplumber.open(pdf_fp) as pdf:
-        page = pdf.pages[pg_num]
+    page = pdf.pages[pg_num]
 
-        text_data = page.extract_words()
+    text_data = page.extract_words()
 
-        ycoord_name = {}
+    ycoord_name = {}
 
-        for i, word in enumerate(text_data):
-            if i+1 == len(text_data): break
-            if "Variable" == word['text'] and 'name:' == text_data[i+1]['text']:
-                j = i+2
-                name = ''
-                while text_data[j]['text'] != 'Description:' and text_data[j]['text'] != 'Page':
-                    name += text_data[j]['text']
-                    j += 1
-                
-                ycoord = word['top']
-                ycoord_name[ycoord] = name
+    for i, word in enumerate(text_data):
+        if i+1 == len(text_data): break
+        if "Variable" == word['text'] and 'name:' == text_data[i+1]['text']:
+            j = i+2
+            name = ''
+            while text_data[j]['text'] != 'Description:' and text_data[j]['text'] != 'Page':
+                name += text_data[j]['text']
+                j += 1
+            
+            ycoord = word['top']
+            ycoord_name[ycoord] = name
 
-        # print(ycoord_name)
-        return ycoord_name
+    # print(ycoord_name)
+    return ycoord_name
     
-def get_all_varnames_by_page_by_ycoord(pdf_fp):
+def get_all_varnames_by_page_by_ycoord(pdf):
     """
     wrapper method
     calls get_varnames_on_page_by_ycoord on all pages of pdf at pdf_fp
@@ -146,10 +144,9 @@ def get_all_varnames_by_page_by_ycoord(pdf_fp):
         keys: integers in range(<number of pages in pdf>)
         values: output of get_varnames_on_page_by_ycoord for that page
     """
-    with pdfplumber.open(pdf_fp) as pdf:
-        vars_by_pg_num = {}
-        for pg_num in range(len(pdf.pages)):
-            vars_by_pg_num[pg_num] = get_varnames_on_page_by_ycoord(pdf_fp, pg_num)
+    vars_by_pg_num = {}
+    for pg_num in range(len(pdf.pages)):
+        vars_by_pg_num[pg_num] = get_varnames_on_page_by_ycoord(pdf, pg_num)
     
     return vars_by_pg_num
 
@@ -164,8 +161,8 @@ def get_all_tables_and_names_by_page_by_ycoord(pdf_fp):
         vars_by_pg_num = {}
         tables_by_pg_num = {}
         for pg_num in range(len(pdf.pages)):
-            vars_by_pg_num[pg_num] = get_varnames_on_page_by_ycoord(pdf_fp, pg_num)
-            tables_by_pg_num[pg_num] = get_tables_on_page_by_ycoord(pdf_fp, pg_num)
+            vars_by_pg_num[pg_num] = get_varnames_on_page_by_ycoord(pdf, pg_num)
+            tables_by_pg_num[pg_num] = get_tables_on_page_by_ycoord(pdf, pg_num)
     
     return vars_by_pg_num, tables_by_pg_num
     

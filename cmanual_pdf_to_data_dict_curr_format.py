@@ -184,7 +184,8 @@ class Variable:
 
 def convert_pdf_to_images(pdf_fp):
     """
-    
+    takes in a string representing the path to a PDF
+    converts each page of pdf to png image in created directories
     """
     pdf_image_dir = 'pdf_to_image'
     filename = os.path.basename(pdf_fp).replace('.pdf', '')
@@ -202,7 +203,10 @@ def convert_pdf_to_images(pdf_fp):
 
 def read_pdf_text_ocr(pdf_fp, regen_text=False):
     """
-    
+    reads png images made by convert_pdf_to_images
+    uses pytesseract to invoke tesseract ocr
+    concatenates text from images into String
+    writes to new txt file
     """
     pdf_image_dir = 'pdf_to_image'
     filename = os.path.basename(pdf_fp).replace('.pdf', '')
@@ -247,13 +251,17 @@ def read_pdf_text_ocr(pdf_fp, regen_text=False):
     return text
 
 def remove_page_numbers(text):
+    """
+    uses regex to remove page numbers from inputted String
+    """
     pattern = r'Page \d+ of \d+'
     return re.sub(pattern, '', text)
 
 def get_descriptions(text):
     """
-    
-    assuming for now that description is not split over a pagebreak
+    pulls text from after appearances of "Description:" in text
+        reads line by line until text of line indicates description has concluded 
+    (assuming for now that description is not split over a pagebreak)
     """
     desc_texts = text.split('Description:')[1:]
 
@@ -278,6 +286,11 @@ def get_descriptions(text):
     return descriptions
 
 def write_variables_to_xlsx(fp, variables):
+    """
+    takes in str representing fp and list of variables objects
+    concatonates variable DataFrames into one DataFrame
+    writes df to xlsx in created directories
+    """
     output_dir = os.path.join('output', date_ext())
     make_dir(output_dir)
     fp_out = f"Data_Dictionary_{fp.split('\\')[-1].replace('.pdf', '')}.xlsx"
@@ -290,6 +303,11 @@ def write_variables_to_xlsx(fp, variables):
         df.to_excel(writer, sheet_name='Data Dictionary', index=False)
 
 def write_pdf_vars_to_xlsx(pdf_fp, regen_text=False):
+    """
+    wrapper method
+    takes str representing path to PDF
+    writes summary using above methods
+    """
     print(f'reading pdf... {':'.join(date_ext(full=True).split('_')[1:])}')
     pdf_text = read_pdf_text_ocr(pdf_fp, regen_text=regen_text)
 

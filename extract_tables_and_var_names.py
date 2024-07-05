@@ -8,6 +8,11 @@ import re
 from collections import defaultdict
 
 def get_num_observations(pdf_fp):
+    """
+    uses regex to search for indicators of num observations
+    outputs int repreeenting num observations if found
+        else None
+    """
     with pdfplumber.open(pdf_fp) as pdf:
         page = pdf.pages[0]
         text_data = page.extract_words()
@@ -30,7 +35,15 @@ def get_num_observations(pdf_fp):
 
 def get_tables_on_page_by_ycoord(pdf_fp, pg_num):
     """
-    
+    takes str representing file path to pdf and int (falling in range(<number of pages in pdf>)
+    outputs:
+    - dict
+        - keys: distances from table to top of page (float)
+        - values:
+            - dict
+                'parsed': parsed table (see parse_table_cells)
+                'raw_table': pdfplumber table object
+
     """
     with pdfplumber.open(pdf_fp) as pdf:
         pg = pdf.pages[pg_num]
@@ -61,6 +74,14 @@ def get_tables_on_page_by_ycoord(pdf_fp, pg_num):
         return dict(final)
 
 def get_all_tables_by_page_by_ycoord(pdf_fp):
+    """
+    wrapper method
+    calls get_tables_on_page_by_ycoord on all pages of pdf at pdf_fp
+    outputs:
+    - dict
+        keys: integers in range(<number of pages in pdf>)
+        values: output of get_tables_on_page_by_ycoord for that page
+    """
     with pdfplumber.open(pdf_fp) as pdf:
         tables_by_pg_num = {}
         for pg_num in range(len(pdf.pages)):
@@ -69,6 +90,10 @@ def get_all_tables_by_page_by_ycoord(pdf_fp):
     return tables_by_pg_num
 
 def fix_split_tables(tables_by_pg_num):
+    """
+    takes output of get_all_tables_by_page_by_ycoord
+    combines tables split by page breaks (directly manipulates elements)
+    """
     for pg_num, curr_page in tables_by_pg_num.items():
         for _, table_info in curr_page.items():
             if is_table_last_thing_on_page(table_info['raw_table']):
@@ -83,6 +108,13 @@ def fix_split_tables(tables_by_pg_num):
                 break
 
 def get_varnames_on_page_by_ycoord(pdf_fp, pg_num):
+    """
+    takes str representing file path to pdf and int (falling in range(<number of pages in pdf>)
+    outputs:
+    - dict
+        - keys: distances from table to top of page (float)
+        - values: variable name at that distance
+    """
     with pdfplumber.open(pdf_fp) as pdf:
         page = pdf.pages[pg_num]
 
@@ -106,6 +138,14 @@ def get_varnames_on_page_by_ycoord(pdf_fp, pg_num):
         return ycoord_name
     
 def get_all_varnames_by_page_by_ycoord(pdf_fp):
+    """
+    wrapper method
+    calls get_varnames_on_page_by_ycoord on all pages of pdf at pdf_fp
+    outputs:
+    - dict
+        keys: integers in range(<number of pages in pdf>)
+        values: output of get_varnames_on_page_by_ycoord for that page
+    """
     with pdfplumber.open(pdf_fp) as pdf:
         vars_by_pg_num = {}
         for pg_num in range(len(pdf.pages)):
@@ -114,6 +154,12 @@ def get_all_varnames_by_page_by_ycoord(pdf_fp):
     return vars_by_pg_num
 
 def get_all_tables_and_names_by_page_by_ycoord(pdf_fp):
+    """
+    wrapper method
+    returns outputs of:
+        - get_varnames_on_page_by_ycoord
+        - get_tables_on_page_by_ycoord
+    """
     with pdfplumber.open(pdf_fp) as pdf:
         vars_by_pg_num = {}
         tables_by_pg_num = {}
@@ -124,6 +170,12 @@ def get_all_tables_and_names_by_page_by_ycoord(pdf_fp):
     return vars_by_pg_num, tables_by_pg_num
     
 def map_var_to_table(pdf_fp):
+    """
+    wrapper method
+    parses outputs of get_varnames_on_page_by_ycoord and get_tables_on_page_by_ycoord
+    outputs dictionary binding varnames to their table
+        binds based on location on page of name and table
+    """
     vars_by_pg_num, tables_by_pg_num = get_all_tables_and_names_by_page_by_ycoord(pdf_fp)
     # vars_by_pg_num = get_all_varnames_by_page_by_ycoord(pdf_fp)
     # tables_by_pg_num = get_all_tables_by_page_by_ycoord(pdf_fp)
@@ -166,6 +218,16 @@ def map_var_to_table(pdf_fp):
     return name_to_table
 
 def parse_table_cells(table):
+    """
+    takes list of strings representing the text of each table cell
+        (going down columns, leftmost column to rightmost)
+    ouputs dictionary of dictionaries
+        keys: coded value
+        values: dictionaries
+            - 'Description': description of coded value
+            - 'Count': if count column, str represnting count
+                       else None
+    """
     str_codes = ['Blank', 'Not blank']
     num_rows = 0
     for i, cell_text in enumerate(table):
@@ -200,14 +262,29 @@ def parse_table_cells(table):
     return dict(final)
 
 def is_table_first_thing_on_page(table):
+    """
+    helper method
+    takes pdf plumber table object
+    checks whether distance from table to top of page is less than 75
+    """
     dist_to_top = table.bbox[1]
     return dist_to_top < 75
 
 def is_table_last_thing_on_page(table):
+    """
+    helper method
+    takes pdf plumber table object
+    checks whether distance from table to top of page is more than 670
+    """
     dist_to_top = table.bbox[3]
     return dist_to_top > 670
 
 def is_table_almost_first_thing_on_page(table):
+    """
+    helper method
+    takes pdf plumber table object
+    checks whether distance from table to top of page is less than 150
+    """
     dist_to_top = table.bbox[1]
     return dist_to_top < 150
 

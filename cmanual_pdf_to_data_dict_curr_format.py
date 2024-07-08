@@ -32,11 +32,11 @@ class Variable:
         - pdf_fp: str
             - file path to pdf variable is in
     """
-    def __init__(self, name, description, values, pdf_fp):
+    def __init__(self, name, description, values, total_obv):
         self.name = name
         self.description = description
         self.values = values
-        self.pdf_fp = pdf_fp
+        self.total_obv = total_obv
     
     def __str__(self):
         values_rep = [(val, val_info) for val, val_info in self.values.items()] if self.values is not None else None
@@ -321,6 +321,7 @@ def write_pdf_vars_to_xlsx(pdf_fp, regen_text=False):
     names.sort(key=lambda name: name_to_table[name]['location'])
 
     print(f'creating variable objects... {':'.join(date_ext(full=True).split('_')[1:])}')
+    total = get_num_observations(pdf_fp)
     variable_dict = defaultdict(dict)
     var_objs = []
     for name in names:
@@ -331,7 +332,7 @@ def write_pdf_vars_to_xlsx(pdf_fp, regen_text=False):
         descriptions = descriptions[1:]
         variable_dict[name]['values'] = name_to_table[name]['table']
         var_objs.append(Variable(name, variable_dict[name]['description'],
-                                    variable_dict[name]['values'], pdf_fp))
+                                    variable_dict[name]['values'], total))
 
     print(f'writing to xlsx... {':'.join(date_ext(full=True).split('_')[1:])}')
     write_variables_to_xlsx(pdf_fp, var_objs)

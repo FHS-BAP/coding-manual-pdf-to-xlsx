@@ -73,7 +73,7 @@ class Variable:
         col_names = ['Variable', 'Description', 'N', 'Miss', 'Minimum', 'Maximum', 'Units', 'Coded Values', 'Variable Notes']
         
         # N + Miss
-        total = get_num_observations(self.pdf_fp)
+        total = self.total_obv
         count = 0
         if self.values is not None:
             for val, val_info in self.values.items():
@@ -230,8 +230,9 @@ def read_pdf_text_ocr(pdf_fp, regen_text=False):
         if ext.lower() != '.png':
             continue
         
-        i+=1
         print(f'reading page {i}...')
+        i+=1
+        
         image = cv2.imread(os.path.join(images_dir, page))
 
         gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -339,7 +340,11 @@ def write_pdf_vars_to_xlsx(pdf_fp, regen_text=False):
     print(f'done! {':'.join(date_ext(full=True).split('_')[1:])}')
 
 def main():
-    pass
+    fp = input('Please input relative path of PDF:\n')
+    try:
+        write_pdf_vars_to_xlsx(fp)
+    except:
+        print('invalid file path, please rerun')
 
 if __name__ == '__main__':
     main()

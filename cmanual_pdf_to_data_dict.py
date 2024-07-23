@@ -11,9 +11,8 @@ import pymupdf
 import os
 import re
 from collections import defaultdict
-from fhs_utility.misc import make_dir
+from fhs_utility.misc import make_dir, date_ext
 from extract_tables_and_var_names import map_var_to_table, get_num_observations
-from fhs_utility.misc import date_ext
 
 # make sure path points to tesseract.exe file
 pytesseract.pytesseract.tesseract_cmd = r'C:/Program Files/Tesseract-OCR/tesseract.exe'

@@ -1,5 +1,5 @@
 """
-cmanual_pdf_to_data_dict_curr_format.py
+cmanual_pdf_to_data_dict.py
 script to read coding manual PDFs, parse info, and create xlsx summary
 NOTE: intended for coding manuals in the currently used format
 """

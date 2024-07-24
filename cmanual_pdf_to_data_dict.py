@@ -4,13 +4,13 @@ script to read coding manual PDFs, parse info, and create xlsx summary
 NOTE: intended for coding manuals in the currently used format
 """
 
+import os
+import re
+from collections import defaultdict
 import cv2
 import pytesseract
 import pandas as pd
 import pymupdf
-import os
-import re
-from collections import defaultdict
 from fhs_utility.misc import make_dir, date_ext
 from extract_tables_and_var_names import map_var_to_table, get_num_observations
 
@@ -27,7 +27,7 @@ class Variable:
             - keys: different values Variable can take on
             - values:
                 - 'Description': description of what value means (str)
-                - 'Count': count of data that takes on that value (int) (optional, None if not defined)
+                - 'Count': count of data that has that value (int) (optional, None if not defined)
         - pdf_fp: str
             - file path to pdf variable is in
     """
@@ -36,12 +36,16 @@ class Variable:
         self.description = description
         self.values = values
         self.total_obv = total_obv
-    
+
     def __str__(self):
-        values_rep = [(val, val_info) for val, val_info in self.values.items()] if self.values is not None else None
+        values_rep = [(val, val_info) for val, val_info in self.values.items()] \
+                     if self.values is not None else None
         return f'name: {self.name}\ndescription: {self.description}\nvalues: {values_rep}'
-    
+
     def to_dataframe(self):
+        """
+        converts variable to pandas dataframe for writing to xlsx
+        """
         values_rep = []
         match self.values:
             case None:
@@ -61,17 +65,22 @@ class Variable:
                 d = [{'Variable Name': self.name,
                     'Description': self.description,
                     'Values': values_rep[0]}]
-                
+
                 for i in range(1, len(values_rep)):
                     d.append({'Variable Name': '',
                     'Description': '',
                     'Values': values_rep[i]})
 
         return pd.DataFrame(d, index=range(len(d)))
-    
+
     def to_dataframe_new(self):
-        col_names = ['Variable', 'Description', 'N', 'Miss', 'Minimum', 'Maximum', 'Units', 'Coded Values', 'Variable Notes']
-        
+        """
+        converts variable to pandas dataframe for writing to xlsx
+        *new format*
+        """
+        col_names = ['Variable', 'Description', 'N', 'Miss',
+                     'Minimum', 'Maximum', 'Units', 'Coded Values', 'Variable Notes']
+
         # N + Miss
         total = self.total_obv
         count = 0
@@ -81,7 +90,7 @@ class Variable:
                     break
                 else:
                     count += int(val_info['Count'])
-        
+
         match count:
             case 0:
                 count = ''
@@ -122,7 +131,7 @@ class Variable:
                     minimum = min(codes)
                 else:
                     maximum = ''
-                    minimum = ''                  
+                    minimum = ''
 
         # Coded Values
         values_rep = []
@@ -133,7 +142,7 @@ class Variable:
                 for val, val_info in self.values.items():
                     s = f'{val} = {val_info['Description']}'
                     values_rep.append(s)
-        
+
         # Variable Notes
         var_notes = ''
         if 'Note:' in self.description:
@@ -167,7 +176,7 @@ class Variable:
                     'Units': units,
                     'Coded Values': values_rep[0],
                     'Variable Notes': var_notes}]
-                
+
                 for i in range(1, len(values_rep)):
                     d.append({'Variable': '',
                     'Description': '',
@@ -212,12 +221,12 @@ def read_pdf_text_ocr(pdf_fp, regen_text=False):
     images_dir = os.path.join(pdf_image_dir, filename)
     if not os.path.isdir(images_dir):
         convert_pdf_to_images(pdf_fp)
-    
+
     txt_output = 'PDF_txts'
     make_dir(txt_output)
     filename = os.path.join(txt_output, f'{filename}.txt')
     if os.path.isfile(filename) and not regen_text:
-        with open(filename, 'r') as f:
+        with open(filename, 'r', encoding='utf-8') as f:
             text =  f.read()
             return text
 
@@ -229,10 +238,10 @@ def read_pdf_text_ocr(pdf_fp, regen_text=False):
         _, ext = os.path.splitext(page)
         if ext.lower() != '.png':
             continue
-        
+
         print(f'reading page {i}...')
         i+=1
-        
+
         image = cv2.imread(os.path.join(images_dir, page))
 
         gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -244,10 +253,10 @@ def read_pdf_text_ocr(pdf_fp, regen_text=False):
         page_text = pytesseract.image_to_string(enhanced_image)
         text += page_text
         text += '!!!PAGEBREAK!!!\n'
-    
-    with open(filename, 'w') as f:
+
+    with open(filename, 'w', encoding='utf-8') as f:
         f.write(text)
-    
+
     return text
 
 def remove_page_numbers(text):
@@ -274,7 +283,7 @@ def get_descriptions(text):
             line = line.strip()
 
             if ('Description' in line or 'Code or Value' in line or
-                (re.search('[A-Z]', line) is not None and line.upper() == line and ' ' not in line)):
+            (re.search('[A-Z]', line) is not None and line.upper() == line and ' ' not in line)):
                 break
 
             desc_line = re.sub(r' {2,}', ' ', line.strip())
@@ -296,7 +305,8 @@ def write_variables_to_xlsx(fp, variables):
     fp_out = f"Data_Dictionary_{fp.split('\\')[-1].replace('.pdf', '')}.xlsx"
     fp_out = os.path.join(output_dir, fp_out)
     with pd.ExcelWriter(fp_out) as writer:
-        df = pd.DataFrame(columns=['Variable', 'Description', 'N', 'Miss', 'Minimum', 'Maximum', 'Units', 'Coded Values', 'Variable Notes'])
+        df = pd.DataFrame(columns=['Variable', 'Description', 'N', 'Miss',
+                                   'Minimum', 'Maximum', 'Units', 'Coded Values', 'Variable Notes'])
         for var in variables:
             df = pd.concat([df, var.to_dataframe_new()])
 
@@ -304,47 +314,48 @@ def write_variables_to_xlsx(fp, variables):
 
 def write_pdf_vars_to_xlsx(pdf_fp, regen_text=False):
     """
-    wrapper method
-    takes str representing path to PDF
-    writes summary using above methods
+    takes str representing reletive path to coding manual PDF
+    writes xlsx data dictionary using above methods
     """
-    print(f'reading pdf... {':'.join(date_ext(full=True).split('_')[1:])}')
+    print(f'Reading PDF... ({':'.join(date_ext(full=True).split('_')[1:])})')
     pdf_text = read_pdf_text_ocr(pdf_fp, regen_text=regen_text)
 
-    print(f'collecting descriptions... {':'.join(date_ext(full=True).split('_')[1:])}')
+    print(f'Collecting descriptions... ({':'.join(date_ext(full=True).split('_')[1:])})')
     descriptions = get_descriptions(pdf_text)
 
-    print(f'collecting names and tables... {':'.join(date_ext(full=True).split('_')[1:])}')
+    print(f'Collecting names and tables... ({':'.join(date_ext(full=True).split('_')[1:])})')
     name_to_table = map_var_to_table(pdf_fp)
-
     names = list(name_to_table.keys())
     names.sort(key=lambda name: name_to_table[name]['location'])
 
-    print(f'creating variable objects... {':'.join(date_ext(full=True).split('_')[1:])}')
+    print(f'Creating variable objects... ({':'.join(date_ext(full=True).split('_')[1:])})')
     total = get_num_observations(pdf_fp)
     variable_dict = defaultdict(dict)
     var_objs = []
     for name in names:
         variable_dict[name]['name'] = name
+
         if len(descriptions) == 0:
-            descriptions.append('ran out of descriptions')
+            descriptions.append('ran out of descriptions') # precaution
+
         variable_dict[name]['description'] = descriptions[0]
         descriptions = descriptions[1:]
+
         variable_dict[name]['values'] = name_to_table[name]['table']
         var_objs.append(Variable(name, variable_dict[name]['description'],
                                     variable_dict[name]['values'], total))
 
-    print(f'writing to xlsx... {':'.join(date_ext(full=True).split('_')[1:])}')
+    print(f'Writing to xlsx... ({':'.join(date_ext(full=True).split('_')[1:])})')
     write_variables_to_xlsx(pdf_fp, var_objs)
 
-    print(f'done! {':'.join(date_ext(full=True).split('_')[1:])}')
+    print(f'Done! ({':'.join(date_ext(full=True).split('_')[1:])})')
 
 def main():
+    """
+    basic text-based UI for processing PDFs one at a time
+    """
     fp = input('Please input relative path of PDF:\n')
-    try:
-        write_pdf_vars_to_xlsx(fp)
-    except:
-        print('invalid file path, please rerun')
+    write_pdf_vars_to_xlsx(fp)
 
 if __name__ == '__main__':
     main()

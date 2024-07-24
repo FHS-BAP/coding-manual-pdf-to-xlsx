@@ -3,9 +3,9 @@ extract_tables_and_var_names.py
 module for extracting/reading tables and parsing variable names from coding manuals using pyplumber
 """
 
-import pdfplumber
 import re
 from collections import defaultdict
+import pdfplumber
 
 def get_num_observations(pdf_fp):
     """
@@ -43,7 +43,6 @@ def get_tables_on_page_by_ycoord(pdf, pg_num):
             - dict
                 'parsed': parsed table (see parse_table_cells)
                 'raw_table': pdfplumber table object
-
     """
     pg = pdf.pages[pg_num]
     tables = pg.debug_tablefinder().tables
@@ -63,9 +62,9 @@ def get_tables_on_page_by_ycoord(pdf, pg_num):
             if cell_words == '':
                 continue
             table_contents.append(cell_words)
-        
+
         parsed = parse_table_cells(table_contents)
-        if parsed == None:
+        if parsed is None:
             continue
         final[ycoord]['parsed'] = parsed
         final[ycoord]['raw_table'] = table
@@ -85,7 +84,7 @@ def get_all_tables_by_page_by_ycoord(pdf):
     tables_by_pg_num = {}
     for pg_num in range(len(pdf.pages)):
         tables_by_pg_num[pg_num] = get_tables_on_page_by_ycoord(pdf, pg_num)
-    
+
     return tables_by_pg_num
 
 def fix_split_tables(tables_by_pg_num):
@@ -121,20 +120,21 @@ def get_varnames_on_page_by_ycoord(pdf, pg_num):
     ycoord_name = {}
 
     for i, word in enumerate(text_data):
-        if i+1 == len(text_data): break
+        if i+1 == len(text_data):
+            break
         if "Variable" == word['text'] and 'name:' == text_data[i+1]['text']:
             j = i+2
             name = ''
             while text_data[j]['text'] != 'Description:' and text_data[j]['text'] != 'Page':
                 name += text_data[j]['text']
                 j += 1
-            
+
             ycoord = word['top']
             ycoord_name[ycoord] = name
 
     # print(ycoord_name)
     return ycoord_name
-    
+
 def get_all_varnames_by_page_by_ycoord(pdf):
     """
     wrapper method
@@ -147,7 +147,7 @@ def get_all_varnames_by_page_by_ycoord(pdf):
     vars_by_pg_num = {}
     for pg_num in range(len(pdf.pages)):
         vars_by_pg_num[pg_num] = get_varnames_on_page_by_ycoord(pdf, pg_num)
-    
+
     return vars_by_pg_num
 
 def get_all_tables_and_names_by_page_by_ycoord(pdf_fp):
@@ -163,9 +163,9 @@ def get_all_tables_and_names_by_page_by_ycoord(pdf_fp):
         for pg_num in range(len(pdf.pages)):
             vars_by_pg_num[pg_num] = get_varnames_on_page_by_ycoord(pdf, pg_num)
             tables_by_pg_num[pg_num] = get_tables_on_page_by_ycoord(pdf, pg_num)
-    
+
     return vars_by_pg_num, tables_by_pg_num
-    
+
 def map_var_to_table(pdf_fp):
     """
     wrapper method
@@ -192,7 +192,7 @@ def map_var_to_table(pdf_fp):
                     if (table_y - name_y) > 140:
                         break
                     parsed = table_info['parsed']
-                    
+
                     code_values = [code_info['Description'] for code_info in parsed.values()]
                     bad_table = False
                     for n in names_on_page:
@@ -204,7 +204,7 @@ def map_var_to_table(pdf_fp):
                     var_codes = parsed
                     del ycoords_tables[table_y]
                     break
-            if var_codes is None and name_y > 650 and pg_num + 1 in tables_by_pg_num.keys():
+            if var_codes is None and name_y > 650 and pg_num + 1 in tables_by_pg_num:
                 for _, table_info in tables_by_pg_num[pg_num+1].items():
                     if is_table_almost_first_thing_on_page(table_info['raw_table']):
                         var_codes = table_info['parsed']
@@ -238,7 +238,7 @@ def parse_table_cells(table):
             num_rows += 1
         else:
             break
-    
+
     final = defaultdict(dict)
     if num_rows*2 == len(table):
         for i in range(num_rows):
@@ -255,7 +255,7 @@ def parse_table_cells(table):
             final[code]['Count'] = count
     else:
         return None
-    
+
     return dict(final)
 
 def is_table_first_thing_on_page(table):
@@ -284,9 +284,3 @@ def is_table_almost_first_thing_on_page(table):
     """
     dist_to_top = table.bbox[1]
     return dist_to_top < 150
-
-def main():
-    pass
-
-if __name__ == '__main__':
-    main()

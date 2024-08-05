@@ -168,14 +168,12 @@ def get_all_tables_and_names_by_page_by_ycoord(pdf_fp):
 
 def map_var_to_table(pdf_fp):
     """
-    wrapper method
     parses outputs of get_varnames_on_page_by_ycoord and get_tables_on_page_by_ycoord
+    fixes split tables
     outputs dictionary binding varnames to their table
-        binds based on location on page of name and table
+        binds based on y distance between name and table
     """
     vars_by_pg_num, tables_by_pg_num = get_all_tables_and_names_by_page_by_ycoord(pdf_fp)
-    # vars_by_pg_num = get_all_varnames_by_page_by_ycoord(pdf_fp)
-    # tables_by_pg_num = get_all_tables_by_page_by_ycoord(pdf_fp)
     fix_split_tables(tables_by_pg_num)
 
     name_to_table = defaultdict(dict)
@@ -186,9 +184,6 @@ def map_var_to_table(pdf_fp):
             var_codes = None
             for table_y, table_info in ycoords_tables.items():
                 if table_y > name_y:
-                    # print(name)
-                    # print(table_y - name_y)
-                    # input()
                     if (table_y - name_y) > 140:
                         break
                     parsed = table_info['parsed']

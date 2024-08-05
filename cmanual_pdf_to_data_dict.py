@@ -46,38 +46,6 @@ class Variable:
         """
         converts variable to pandas dataframe for writing to xlsx
         """
-        values_rep = []
-        match self.values:
-            case None:
-                values_rep = 'N/A'
-            case _:
-                for val, val_info in self.values.items():
-                    s = f'{val}= {val_info['Description']}'
-                    s += f' ({val_info['Count']})' if val_info['Count'] is not None else ''
-                    values_rep.append(s)
-
-        match values_rep:
-            case 'N/A':
-                d = [{'Variable Name': self.name,
-                    'Description': self.description,
-                    'Values': values_rep}]
-            case _:
-                d = [{'Variable Name': self.name,
-                    'Description': self.description,
-                    'Values': values_rep[0]}]
-
-                for i in range(1, len(values_rep)):
-                    d.append({'Variable Name': '',
-                    'Description': '',
-                    'Values': values_rep[i]})
-
-        return pd.DataFrame(d, index=range(len(d)))
-
-    def to_dataframe_new(self):
-        """
-        converts variable to pandas dataframe for writing to xlsx
-        *new format*
-        """
         col_names = ['Variable', 'Description', 'N', 'Miss',
                      'Minimum', 'Maximum', 'Units', 'Coded Values', 'Variable Notes']
 
@@ -134,14 +102,15 @@ class Variable:
                     minimum = ''
 
         # Coded Values
-        values_rep = []
+        values_rep = ''
         match self.values:
             case None:
-                values_rep = 'N/A'
+                pass
             case _:
                 for val, val_info in self.values.items():
-                    s = f'{val} = {val_info['Description']}'
-                    values_rep.append(s)
+                    s = f'{val} = {val_info['Description']}\r\n'
+                    values_rep += s
+        values_rep = values_rep.rstrip()
 
         # Variable Notes
         var_notes = ''
@@ -155,38 +124,15 @@ class Variable:
             units += self.description.split('Units:')[1].strip()
             self.description = self.description.split('Units:')[0].strip()
 
-        match values_rep:
-            case 'N/A':
-                d = [{'Variable': self.name,
-                    'Description': self.description,
-                    'N': count,
-                    'Miss': misses,
-                    'Minimum': minimum,
-                    'Maximum': maximum,
-                    'Units': units,
-                    'Coded Values': '',
-                    'Variable Notes': var_notes}]
-            case _:
-                d = [{'Variable': self.name,
-                    'Description': self.description,
-                    'N': count,
-                    'Miss': misses,
-                    'Minimum': minimum,
-                    'Maximum': maximum,
-                    'Units': units,
-                    'Coded Values': values_rep[0],
-                    'Variable Notes': var_notes}]
-
-                for i in range(1, len(values_rep)):
-                    d.append({'Variable': '',
-                    'Description': '',
-                    'N': '',
-                    'Miss': '',
-                    'Minimum': '',
-                    'Maximum': '',
-                    'Units': '',
-                    'Coded Values': values_rep[i],
-                    'Variable Notes': ''})
+        d = [{'Variable': self.name,
+            'Description': self.description,
+            'N': count,
+            'Miss': misses,
+            'Minimum': minimum,
+            'Maximum': maximum,
+            'Units': units,
+            'Coded Values': values_rep,
+            'Variable Notes': var_notes}]
 
         return pd.DataFrame(d, columns=col_names, index=range(len(d)))
 
@@ -305,10 +251,11 @@ def write_variables_to_xlsx(fp, variables):
     fp_out = f"Data_Dictionary_{fp.split('\\')[-1].replace('.pdf', '')}.xlsx"
     fp_out = os.path.join(output_dir, fp_out)
     with pd.ExcelWriter(fp_out) as writer:
+        writer.book.formats[0].set_text_wrap()
         df = pd.DataFrame(columns=['Variable', 'Description', 'N', 'Miss',
                                    'Minimum', 'Maximum', 'Units', 'Coded Values', 'Variable Notes'])
         for var in variables:
-            df = pd.concat([df, var.to_dataframe_new()])
+            df = pd.concat([df, var.to_dataframe()])
 
         df.to_excel(writer, sheet_name='Data Dictionary', index=False)
 

@@ -52,7 +52,7 @@ class Variable:
         # N + Miss
         total = self.total_obv
         count = 0
-        if self.values is not None:
+        if self.values is not None and total is not None:
             for val, val_info in self.values.items():
                 if val_info['Count'] is None:
                     break
@@ -248,7 +248,7 @@ def write_variables_to_xlsx(fp, variables):
     """
     output_dir = os.path.join('output', date_ext())
     make_dir(output_dir)
-    fp_out = f"Data_Dictionary_{fp.split('\\')[-1].replace('.pdf', '')}.xlsx"
+    fp_out = f"Data_Dictionary_{os.path.split(fp)[-1].replace('.pdf', '')}.xlsx"
     fp_out = os.path.join(output_dir, fp_out)
     with pd.ExcelWriter(fp_out) as writer:
         writer.book.formats[0].set_text_wrap()

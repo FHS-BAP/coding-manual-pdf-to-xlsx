@@ -20,7 +20,12 @@ def get_not_var_names():
     """
     list of words that can not be var names
     """
-    return ['framingham', 'variable', 'word', 'data', 'sas', 'number', 'missing', 'ray']
+    return ['framingham', 'variable', 'word', 'data', 'sas', 'number',
+            'missing', 'ray', 'original', 'coding', 'records', 'with',
+            'should', 'cohort', 'collection', 'dataset', 'question',
+            'time', 'study', 'description', 'set', 'stairs', 'information',
+            'alive', 'chd', 'other', 'participant', 'exam', 'variables',
+            'assigned', 'manual', 'offspring', 'version']
 
 def is_var_name(s):
     """
@@ -32,10 +37,11 @@ def is_var_name(s):
         - s is not all digits
         - ':' or '+' in s
     """
-    return not (s.replace('-', '') == '' or s.replace('*', '') == '' or s.replace('_', '') == ''\
-        or s.lower() in get_not_var_names()\
-        or s.upper() != s or re.sub(r'\d', '', s) == ''\
-        or ':' in s or '+' in s)
+    return not ((s.replace('-', '') == '') or (s.replace('*', '') == '') or (s.replace('_', '') == '')\
+        or (s.lower() in get_not_var_names())\
+        or (s.upper() != s) or (re.sub(r'\d', '', s) == '')\
+        or (':' in s) or ('+' in s) or ('=' in s) or (',' in s) or ('/' in s) or ('.' in s)
+        or ('(' in s) or (')' in s) or ('-' in s) or ('"' in s) or ('“' in s))
 
 def read_words_and_locations_on_page(pdf, pg_num):
     """
@@ -87,7 +93,9 @@ def extract_pdf_var_names(pdf):
         words = read_words_and_locations_on_page(pdf, i)
         
         if i == 0:
-            while len(extract_page_var_names(words, offset=x, is_first_page=(i==0))) < 3:
+            while len(extract_page_var_names(words, offset=x, is_first_page=(i==0))) < 2 \
+            and 'IDTYPE' not in extract_page_var_names(words, offset=x, is_first_page=(i==0))\
+            and 'ID' not in extract_page_var_names(words, offset=x, is_first_page=(i==0)):
                 x += 0.05
                 if x > 500:
                     break
@@ -198,6 +206,9 @@ def parse_var_text_for_coded_values(var_text):
     return values
 
 def parse_var_text_for_description(var_text):
+    """
+    
+    """
     patterns = get_coded_values_patterns()
     lines = var_text.split('\n')
     
@@ -220,7 +231,7 @@ def parse_var_text_for_description(var_text):
             else:
                 s += f' {line}'
 
-    return s.strip()
+    return s.replace('=', '').strip()
 
 def process_pdf(pdf_fp):
     """

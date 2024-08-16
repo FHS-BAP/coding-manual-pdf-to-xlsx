@@ -1,0 +1,6 @@
+opencv_python==4.10.0.82 # required only for current format PDFs
+pandas==2.2.2
+pdfplumber==0.11.0
+pymupdf==1.24.9 # required only for current format PDFs
+pytesseract==0.3.10 # required only for current format PDFs
+# fhs_utility is also necessary (naturally)

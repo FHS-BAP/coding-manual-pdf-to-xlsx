@@ -18,7 +18,7 @@ def get_var_names_x_coord():
 
 def get_not_var_names():
     """
-    list of words that can not be var names
+    returns list of words that can not be var names (WIP)
     """
     return ['framingham', 'variable', 'word', 'data', 'sas', 'number',
             'missing', 'ray', 'original', 'coding', 'records', 'with',
@@ -31,21 +31,25 @@ def is_var_name(s):
     """
     returns True if s could be a variable name (WIP)
     conditions:
-        - not made of up only '-'s, '*'s, or '_'s
-        - s not in get_not_var_names()
+        - not made of up only '_'s
+        - s.lower() not in get_not_var_names()
         - s is all uppercase
         - s is not all digits
-        - ':' or '+' in s
+        - various punctuation is not in s
     """
-    return not ((s.replace('-', '') == '') or (s.replace('*', '') == '') or (s.replace('_', '') == '')\
-        or (s.lower() in get_not_var_names())\
+    return not ((s.replace('_', '') == '') or (s.lower() in get_not_var_names())\
         or (s.upper() != s) or (re.sub(r'\d', '', s) == '')\
         or (':' in s) or ('+' in s) or ('=' in s) or (',' in s) or ('/' in s) or ('.' in s)
-        or ('(' in s) or (')' in s) or ('-' in s) or ('"' in s) or ('“' in s))
+        or ('(' in s) or (')' in s) or ('-' in s) or ('"' in s) or ('“' in s) or ('*' in s))
 
 def read_words_and_locations_on_page(pdf, pg_num):
     """
-    
+    :input pdf: pdfplumber pdf object
+    :input pg_num: int, 0 <= pg_num < (number of pages in pdf)
+
+    returns list of dictionaries
+        dict for every word
+            dict contains text of words and location information
     """
     page = pdf.pages[pg_num]
     words = page.extract_words()
@@ -58,7 +62,14 @@ def read_words_and_locations_on_page(pdf, pg_num):
 
 def extract_page_var_names(words, offset=0, is_first_page=False):
     """
-    
+    :input words: output of read_words_and_locations_on_page
+    :input offset: amount to be added to ret. value of get_var_names_x_coord()
+    :input is_first_page: bool, if true will look for start of line break at start of variables
+    :output var_names: list of dictionaries of variables names, dicts are same format as
+                       read_words_and_locations_on_page
+
+    extracts every word along the x-axis at (get_var_names_x_coord() + offset)
+    uses is_var_name to filter words
     """
     x = get_var_names_x_coord() + offset
     var_names = []
@@ -84,7 +95,20 @@ def extract_page_var_names(words, offset=0, is_first_page=False):
 
 def extract_pdf_var_names(pdf):
     """
-    
+    :input pdf: pdfplumber pdf object
+    :output var_names_by_page: list of list of dictionaries
+        - each inner list represents a page
+            - dicts in inner lists are variable names
+                - dicts taken from output of read_words_and_locations_on_page
+
+    wrapper method for extract_page_var_names
+    on the first page:
+        - tries gradually increasing to the offset param of extract_page_var_names
+            - adds to this value until the ret. value of extract_page_var_names:
+                - has a length of 3 or more
+                - has 'ID' in it (common var. name that appears on first page often)
+                - has 'IDTYPE' in it (common var. name that appears on first page often)
+    iterates through all pages using that offset value
     """
     var_names_by_page = []
 
@@ -106,7 +130,14 @@ def extract_pdf_var_names(pdf):
 
 def extract_var_text(pdf, var_names_by_page):
     """
-    
+    :input pdf: pdfplumber pdf object
+    :input var_names_by_page: output of extract_pdf_var_names
+    :output name_to_text: dictionary mapping variable name to the text
+        corresponding to that variable
+
+    iterates through output of extract_pdf_var_names
+    for each variable:
+        extracts the text corresponding to that variable
     """
     name_to_text = {}
 
@@ -140,7 +171,7 @@ def extract_var_text(pdf, var_names_by_page):
 
 def pull_text_between(y1, y2, words, tolerance=1):
     """
-    
+    pulls text between y1 and y2 in words
     """
     s = ''
     last_y = None
@@ -158,19 +189,23 @@ def pull_text_between(y1, y2, words, tolerance=1):
 
 def handle_broken_var_text(y1, y2, words1, words2, tolerance=1):
     """
-    
+    handles when var text broken over two pages
     """
     return f'{pull_text_between(y1, 9999, words1, tolerance=tolerance)}\n{pull_text_between(0, y2, words2, tolerance=tolerance)}'
 
 def get_coded_values_patterns():
     """
-    
+    returns regex expressions that most old format coded values fit
+        (either a range of numbers or a 1-4 digit number)
     """
     return [r'\d{1,4}-\d{1,4}[\s=]{1}', r'\d{1,4}[\s=]{1}']
 
 def parse_var_text_for_coded_values(var_text):
     """
-    
+    :input var_text: any value of extract_var_text output dict
+    :output values: dictionary in format of values param in Variable constructor
+
+    parses variable text for coded values
     """
     var_text = re.sub(r'[-‐‑‒–—]', '-', var_text)
     patterns = get_coded_values_patterns()
@@ -207,7 +242,10 @@ def parse_var_text_for_coded_values(var_text):
 
 def parse_var_text_for_description(var_text):
     """
-    
+    :input var_text: any value of extract_var_text output dict
+    :output values: str, description of variable
+
+    parses variable text for description
     """
     patterns = get_coded_values_patterns()
     lines = var_text.split('\n')
@@ -235,7 +273,9 @@ def parse_var_text_for_description(var_text):
 
 def process_pdf(pdf_fp):
     """
-    
+    all-in-one method
+    takes file path to pdf and uses above functions to produce xlsx data dict
+        - also uses Variable class from cmanual_pdf_to_data_dict.py
     """
     variables = []
     with pdfplumber.open(pdf_fp) as pdf:
@@ -250,6 +290,9 @@ def process_pdf(pdf_fp):
     print('Done!')
 
 def main():
+    """
+    main
+    """
     pdf_dir = r'PDFs\old_format'
 
     for file in os.listdir(pdf_dir):

@@ -3,4 +3,5 @@ pandas==2.2.2
 pdfplumber==0.11.0
 pymupdf==1.24.9 # required only for current format PDFs
 pytesseract==0.3.10 # required only for current format PDFs
-# fhs_utility is also necessary (naturally)
+# ^ to use pytesseract, Tesseract OCR is required (Windows install here: https://github.com/UB-Mannheim/Tesseract_Dokumentation/blob/main/Tesseract_Doku_Windows.md)
+# fhs_utility is also required (naturally)
